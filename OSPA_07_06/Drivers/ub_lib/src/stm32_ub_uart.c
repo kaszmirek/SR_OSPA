@@ -78,7 +78,8 @@ void UB_Uart_SendString(uint8_t *ptr)
 	while(ptr[count++]);	// Count string length
 
 	while(HAL_UART_GetState(&huart1) != HAL_UART_STATE_READY);
-	if( HAL_UART_Transmit(&huart1,ptr, count,3000) !=HAL_OK){ Error_Handler(); }
+	if( HAL_UART_Transmit(&huart1,ptr, count,3000) !=HAL_OK)
+	{ Error_Handler(); }
 
 }
 
@@ -91,5 +92,6 @@ void UB_IRQHandler(void) {
   if (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_RXNE)) {
 	  __HAL_UART_CLEAR_FLAG(&huart1, UART_FLAG_RXNE);
   }
+
 }
 

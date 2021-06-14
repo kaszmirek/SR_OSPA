@@ -1,1 +1,5 @@
 /Release/
+*.d
+*.o
+*.su
+*.mk

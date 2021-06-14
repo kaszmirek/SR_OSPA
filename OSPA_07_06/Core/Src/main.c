@@ -34,6 +34,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -65,7 +66,8 @@ UART_HandleTypeDef huart1;
 SDRAM_HandleTypeDef hsdram1;
 
 /* USER CODE BEGIN PV */
-
+uint8_t Received;
+uint8_t tmp[2];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -84,13 +86,14 @@ static void MX_USART1_UART_Init(void);
 static void MX_DAC_Init(void);
 static void MX_TIM4_Init(void);
 /* USER CODE BEGIN PFP */
-
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef * husart);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-arm_rfft_instance_f32 S;
-arm_cfft_radix4_instance_f32 S_CFFT;
+//arm_rfft_instance_f32 SS;
+arm_rfft_fast_instance_f32 SS;
+arm_cfft_radix4_instance_f32 S_CFFTT;
 //PDMFilter_InitStruct Filter;
 
 uint8_t  PDM_Input_Buffer[PDM_Input_Buffer_SIZE];
@@ -101,6 +104,31 @@ float32_t buffer_input_copy[256];
 float32_t buffer_output[1024];
 float32_t buffer_output_mag[1024];
 float32_t buffer_output_mag_copy[256];
+extern uint8_t stop_flag;
+extern uint8_t frequency;
+extern uint8_t voltage_amp ;
+extern uint8_t maxvalueindex;
+extern float max_value_conv;
+extern float min_value_conv;
+
+int _write(int file, char *ptr, int len)
+{
+   HAL_UART_Transmit(&huart1, (uint8_t*)ptr, len,HAL_MAX_DELAY);
+  // HAL_UART_Transmit_IT(&huart1, (uint8_t*)ptr, len);
+  // HAL_UART_Transmit(&huart1,ptr, count,3000) !=HAL_OK
+ //  AL_UART_Transmit(&huart1,ptr, count,3000
+ return len;
+}
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+	if(htim == &htim2) {
+
+
+		  printf("htim2 sie wywolal\r\n");
+	}
+
+}
+
+
 /* USER CODE END 0 */
 
 /**
@@ -146,12 +174,15 @@ int main(void)
   MX_USART1_UART_Init();
   MX_DAC_Init();
   MX_TIM4_Init();
-
   /* USER CODE BEGIN 2 */
-  HAL_DAC_Start_DMA(&hdac, DAC_CHANNEL_1, (uint32_t*)Wave_LUT, 128, DAC_ALIGN_12B_R);
+ // HAL_DAC_Start_DMA(&hdac, DAC_CHANNEL_1, (uint32_t*)Wave_LUT, 128, DAC_ALIGN_12B_R);
   HAL_TIM_Base_Start(&htim2);
+  HAL_UART_Receive_IT(&huart1, &Received, 1);
+  //HAL_UART_Receive(&huart1, &Received, 1,HAL_MAX_DELAY);
 
+  tmp[0]=0;
   ospa_init();
+  ospa_start();
   uint16_t xp = 115;
   uint32_t color = 0xF81F;
   uint16_t m=1;
@@ -160,17 +191,34 @@ int main(void)
   uint32_t  maxvalueindex;
   float32_t maxvalue;
   uint8_t   mode;
+  double freq_calc=0;
+  //arm_rfft_init_f32(&SS, &S_CFFTT, 512, 0, 1);
+  //arm_rfft_fast_init_f32(&SS, 512);
+  //printf("po innit \r\n");
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  printf("petelka sie wywolala\r\n");
   while (1)
 {
+
+
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
 
-	    dt = 0.001;
+	  /*
+
+
+	  if(Timer_ms==0) {
+	       Timer_ms=INTERVALL_MS;
+
+	 // printf("HEJJJJ \r\n");
+
+	    dt = 0.0001;
 	    freq = 0;
 	    mode = 1;
 	    ospa_clear_all();
@@ -178,10 +226,17 @@ int main(void)
 	        buffer_input_copy[i] = 0;
 	        buffer_output_mag_copy[i] = 0;
 	      }
+	   int freq_temp=10;
 	  while(mode == 1 || mode == 2 || mode == 3 || mode == 4){
-	        //++freq;
-	        //if(freq > 10)
-	          freq = 10;
+
+	        ++freq;
+	        if(freq > 1024)
+	         freq = 1;
+
+	        if(freq%20==0)
+	        	freq_temp+=20;;
+	        if(freq_temp>1024)
+	        	freq_temp=1;
 	  if(mode == 1){
 	     for(i=0; i<512; ++i){
 	     buffer_input[i] = (float32_t) 30*sin(2*PI*freq*i*dt);
@@ -191,12 +246,14 @@ int main(void)
 	  //ospa_draw_background();
 	  //ospa_clear_all();
 	  //UB_LCD_SetLayer_Menu();
+
 	  UB_LCD_SetLayer_2();
 	  //UB_Graphic2D_DrawLineNormal(ch1_data1,SCALE_START_Y+n,ch1_data2,SCALE_START_Y+n+1,ADC_CH1_COL);
       for(i=0; i<255; ++i){
     	  UB_Graphic2D_DrawLineNormal((uint16_t)(buffer_input[i] + 100),i+0, (uint16_t)(buffer_input[i+1] + 100), i+1,  color);
 //        x_LCD_DrawLine_2(i + 0, (uint16_t)(buffer_input[i] + 30),i + 1, (uint16_t)(buffer_input[i+1] + 30));
       }
+
 	  //p_ospa_draw_adc();
       for(i=0; i<256; ++i){
         buffer_input_copy[i] = buffer_input[i];
@@ -204,22 +261,34 @@ int main(void)
       }
 
       // Calculate Real FFT
-            arm_rfft_f32(&S, buffer_input, buffer_output);
+
+            //arm_rfft_f32(&SS, buffer_input, buffer_output);
+            arm_rfft_fast_f32(&SS, buffer_input,  buffer_output, 1);
+            //arm_rfft_fast_f32(&SS, buffer_input,  buffer_output, 1);
             // Calculate magnitude
-            arm_cmplx_mag_f32(buffer_output, buffer_output_mag, 512);
+            arm_cmplx_mag_f32(buffer_output, buffer_output_mag, 512);//here are real and imaginary values
             // Get maximum value of magnitude
+
             arm_max_f32(buffer_output_mag, 512, &maxvalue, &maxvalueindex);
             // Scale magnitude values
             for(i=0; i<512; ++i){
               buffer_output_mag[i] = 100*buffer_output_mag[i]/maxvalue;
             }
       //delay
-            for(i=0; i<256; ++i){
-              if( (uint16_t)(100 - (uint16_t)buffer_output_mag[i+1]) >100 )
-            	  ospa_send_uart((uint8_t *)"Znaleziono czestotliwosc\r\n");
+            //ospa_send_uart((uint8_t *)"Rozpoczynam szukanie czestotliwosci sygnalu.\r\n");
+           // for(i=0; i<256; ++i){
+            //if( (uint16_t)((uint16_t)buffer_output_mag[i+1]) >50)
+           // ospa_send_uart((uint8_t *)"Znaleziono czestotliwosc ");
+            //  printf("%f \r\n",buffer_output_mag[i+1]);
+           // }
+            double new_freq_calc = (maxvalueindex+1)*10.0/512;
+            if(freq_calc != new_freq_calc){
+            printf("Znaleziona czestotliwosc: %lf kHz\r\n", new_freq_calc);
+			//(maxvalueindex+1)*32.0/512)
+            freq_calc=new_freq_calc;
             }
 
-        for(i=0; i<0x20000; ++i);
+
 
 	  }
 
@@ -228,6 +297,12 @@ int main(void)
 
 	  //ospa_draw_line_h(xp,color,m);
 
+	  }//everything up to here in 50ms loop
+
+
+	  */
+
+	  HAL_Delay(100);
   }
   /* USER CODE END 3 */
 }
@@ -628,9 +703,9 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 0;
+  htim2.Init.Prescaler = 499;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 4294967295;
+  htim2.Init.Period = 1439;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -766,7 +841,7 @@ static void MX_USART1_UART_Init(void)
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
-  huart1.Init.Mode = UART_MODE_TX;
+  huart1.Init.Mode = UART_MODE_TX_RX;
   huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   huart1.Init.OverSampling = UART_OVERSAMPLING_16;
   if (HAL_UART_Init(&huart1) != HAL_OK)
@@ -920,7 +995,84 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+	//printf("odebralem cokolwiek\r\n");
 
+	if (Received == '1')
+
+	{
+		printf("Podaj nowa wartosc  1|2|3 [V]: \r\n");
+		uint8_t value =0;
+		HAL_UART_Receive(&huart1, &value, 1,HAL_MAX_DELAY);
+		setup.trigger_treshold = (value-48)*4096/3.3;
+		printf("value is: %d\r\n",setup.trigger_treshold);
+
+	}
+	else if (Received == '6')
+	{
+
+		if (stop_flag == 0) {
+			printf("-------------------------------\r\n");
+			printf("! ZATRZYMUJE - STOP ! \r\n");
+			printf("-------------------------------\r\n");
+			stop_flag = 1;
+		} else if (stop_flag == 1) {
+			printf("! START ! \r\n");
+			stop_flag = 0;
+
+		}
+
+	}
+	else if (Received == '4') {
+
+		printf("Podaj nowa wartosc w zakresie 1-9[10-90Hz]: \r\n");
+		uint8_t value =0;
+		HAL_UART_Receive(&huart1, &value, 1,HAL_MAX_DELAY);
+		frequency = (value-48)*10;
+	}
+	else if (Received == '2') {
+		printf("-------------------------------\r\n");
+		printf("0 - 5V/div \r\n");
+		printf("1 - 2V/div \r\n");
+		printf("2 - 1V/div \r\n");
+		printf("3 - 0V5/div \r\n");
+		printf("4 - 0V2/div \r\n");
+		printf("5 - 0V1/div \r\n");
+		printf("6 - 0V05/div \r\n");
+		printf("Podaj nowa wartosc w zakresie 0-6: \r\n");
+
+		uint8_t value =0;
+		HAL_UART_Receive(&huart1, &value, 1,HAL_MAX_DELAY);
+		setup.factor_value = (value-48);
+	}
+	else if (Received == '5') {
+		printf("-------------------------------\r\n");
+		printf("Podaj nowa wartosc w zakresie 1-9 [1.1-1.9V]: \r\n");
+		uint8_t value =0;
+		HAL_UART_Receive(&huart1, &value, 1,HAL_MAX_DELAY);
+		voltage_amp = (value-48)+10;
+	}
+	else if (Received == '7') {
+
+
+	float value = 0.0;
+	value = (maxvalueindex+1)*1.0/512*1000;
+	printf("-------------------------------\r\n");
+		printf("Częstotliwość: %f Hz\r\n", value);
+		printf("Mnimalne napiecie : %f\r\n", min_value_conv);
+		printf("Maksymalne napiecie : %f\r\n", max_value_conv);
+		float p2p = max_value_conv-min_value_conv;
+		printf("Napiecie p2p : %f", p2p);
+	}
+	else
+	{
+
+	}
+
+	ospa_menu_show();
+	HAL_UART_Receive_IT(&huart1, &Received, 1); // Ponowne włączenie nasłuchiwania
+
+}
 /* USER CODE END 4 */
 
 /**

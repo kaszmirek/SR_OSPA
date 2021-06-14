@@ -7,7 +7,7 @@
 #include "ospa.h"
 
 extern ADC_HandleTypeDef hadc1;
-extern ADC_HandleTypeDef hadc2;
+//extern ADC_HandleTypeDef hadc2;
 extern DMA_HandleTypeDef hdma_adc1;
 extern TIM_HandleTypeDef ADC_TIM;
 
@@ -189,8 +189,8 @@ void P_ADC_Clear(void)
     ADC_DMA_Buffer_A[n*2]=0x00;
     ADC_DMA_Buffer_A[(n*2)+1]=0x00;
 
-    ADC_DMA_Buffer_B[n*2]=0x00;
-    ADC_DMA_Buffer_B[(n*2)+1]=0x00;
+   // ADC_DMA_Buffer_B[n*2]=0x00;
+   // ADC_DMA_Buffer_B[(n*2)+1]=0x00;
 
     ADC_DMA_Buffer_C[n*2]=0x00;
     ADC_DMA_Buffer_C[(n*2)+1]=0x00;
@@ -199,8 +199,11 @@ void P_ADC_Clear(void)
 
 void P_ADC_InitADC(void)
 {
+	//if(HAL_ADC_Start(&hadc1) != HAL_OK){ Error_Handler(); }
 	// Start ADC1 in dual Buffer mode (0)
-	ADC_change_Mode(0);
+	//if(HAL_ADCEx_MultiModeStart_DMA(&hadc1,(uint32_t*)&ADC_DMA_Buffer_A, ADC_ARRAY_LEN) != HAL_OK){ Error_Handler(); }
+	HAL_ADC_Start_DMA(&hadc1,(uint32_t*)&ADC_DMA_Buffer_A, ADC_ARRAY_LEN);
+	//ADC_change_Mode(0);
 }
 
 //--------------------------------------------------------------
@@ -283,7 +286,7 @@ void ADC_searchTrigger_A1(void)
 
   if(setup.trigger_edge==0) {
     for(n=0;n<ADC_HALF_ARRAY_LEN;n++) {
-      data=ADC_DMA_Buffer_A[(n*2)+ch];
+      data=ADC_DMA_Buffer_A[(n)+ch];
       if(OSPA_ADC.status==ADC_RUNNING) {
         if(data<trigger) {
           OSPA_ADC.status=ADC_PRE_TRIGGER;
@@ -301,7 +304,7 @@ void ADC_searchTrigger_A1(void)
   }
   else {
     for(n=0;n<ADC_HALF_ARRAY_LEN;n++) {
-      data=ADC_DMA_Buffer_A[(n*2)+ch];
+      data=ADC_DMA_Buffer_A[(n)+ch];
       if(OSPA_ADC.status==ADC_RUNNING) {
         if(data>trigger) {
           OSPA_ADC.status=ADC_PRE_TRIGGER;
@@ -339,7 +342,7 @@ void ADC_searchTrigger_A2(void)
 
   if(setup.trigger_edge==0) {
     for(n=ADC_HALF_ARRAY_LEN;n<ADC_ARRAY_LEN;n++) {
-      data=ADC_DMA_Buffer_A[(n*2)+ch];
+      data=ADC_DMA_Buffer_A[(n)+ch];
       if(OSPA_ADC.status==ADC_RUNNING) {
         if(data<trigger) {
           OSPA_ADC.status=ADC_PRE_TRIGGER;
@@ -357,7 +360,7 @@ void ADC_searchTrigger_A2(void)
   }
   else {
     for(n=ADC_HALF_ARRAY_LEN;n<ADC_ARRAY_LEN;n++) {
-      data=ADC_DMA_Buffer_A[(n*2)+ch];
+      data=ADC_DMA_Buffer_A[(n)+ch];
       if(OSPA_ADC.status==ADC_RUNNING) {
         if(data>trigger) {
           OSPA_ADC.status=ADC_PRE_TRIGGER;

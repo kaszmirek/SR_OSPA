@@ -34,7 +34,7 @@
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
-extern volatile uint32_t GUI_Timer_ms;
+extern volatile uint32_t Timer_ms;
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
@@ -58,6 +58,7 @@ void DebugMon_Handler(void);
 void PendSV_Handler(void);
 void SysTick_Handler(void);
 void DMA1_Stream6_IRQHandler(void);
+void USART1_IRQHandler(void);
 void TIM5_IRQHandler(void);
 void DMA2_Stream0_IRQHandler(void);
 void LTDC_IRQHandler(void);

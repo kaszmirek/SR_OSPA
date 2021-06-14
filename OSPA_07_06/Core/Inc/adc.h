@@ -13,13 +13,13 @@
 #include "main.h"
 #include "stm32_ub_led.h"
 
-#define  ADC1d_ANZ   2
+#define  ADC1d_ANZ   1
 #define  ADC_ARRAY_LEN         300 // Number of samples
 #define  ADC_HALF_ARRAY_LEN    ADC_ARRAY_LEN/2 
 
 #define ADC_BITS				12
 #define 	VDDA					3.3
-#define  ADC_MAX				((1<<ADC_BITS)-1)
+#define  ADC_MAX				4095
 #define  FAKTOR_ADC            	VDDA/4095
 
 #define  VFAKTOR_5V             5.0/25
